@@ -51,7 +51,8 @@ namespace geometry {
 class ThreeDimensionalLidarFrustum : public Frustum
 {
    public:
-    ThreeDimensionalLidarFrustum(const double& vFOV, const double& vFOVPadding, const double& hFOV,
+    ThreeDimensionalLidarFrustum(const double& vFOV, const bool& use_start_end_angle, const double& vEFOV,
+                                 const double& vSFOV, const double& vFOVPadding, const double& hFOV,
                                  const double& min_dist, const double& max_dist);
     virtual ~ThreeDimensionalLidarFrustum(void);
 
