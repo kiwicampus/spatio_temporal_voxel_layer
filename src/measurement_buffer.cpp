@@ -75,7 +75,7 @@ MeasurementBuffer::MeasurementBuffer(const std::string& source_name, const std::
     , _max_z(max_d)
     , _vertical_fov(vFOV)
     , _vertical_fov_padding(vFOVPadding)
-    , _use_start_end_angle(use_start_end_angle && model_type == ModelType::THREE_DIMENSIONAL_LIDAR)
+    , _use_start_end_angle(use_start_end_angle)
     , _vertical_start_fov(vSFOV)
     , _vertical_end_fov(vEFOV)
     , _horizontal_fov(hFOV)
@@ -133,6 +133,7 @@ void MeasurementBuffer::BufferROSCloud(const sensor_msgs::msg::PointCloud2& clou
         _observation_list.front()._max_z_in_m = _max_z;
         _observation_list.front()._vertical_fov_in_rad = _vertical_fov;
         _observation_list.front()._use_start_end_angle = _use_start_end_angle;
+        // DEBUG PRINT TO CHECK use_start_end_angle VALUE
         _observation_list.front()._vertical_start_fov_in_rad = _vertical_start_fov;
         _observation_list.front()._vertical_end_fov_in_rad = _vertical_end_fov;
         _observation_list.front()._vertical_fov_padding_in_m = _vertical_fov_padding;

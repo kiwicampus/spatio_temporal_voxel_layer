@@ -184,6 +184,7 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
         declareParameter(source + "." + "use_start_end_angle", rclcpp::ParameterValue(false));
         declareParameter(source + "." + "vertical_fov_start_angle", rclcpp::ParameterValue(-0.12));
         declareParameter(source + "." + "vertical_fov_end_angle", rclcpp::ParameterValue(1.0));
+
         declareParameter(source + "." + "vertical_fov_padding", rclcpp::ParameterValue(0.0));
         declareParameter(source + "." + "horizontal_fov_angle", rclcpp::ParameterValue(1.04));
         declareParameter(source + "." + "decay_acceleration", rclcpp::ParameterValue(0.0));
@@ -222,6 +223,9 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
         node->get_parameter(name_ + "." + source + "." + "vertical_fov_start_angle", vSFOV);
         // vertical FOV end angle in rad (3D lidar frustum only)
         node->get_parameter(name_ + "." + source + "." + "vertical_fov_end_angle", vEFOV);
+
+        RCLCPP_INFO(logger_, "[%s] use_start_end_angle=%d | vSFOV=%.3f | vEFOV=%.3f (source=%s)", getName().c_str(),
+                    use_start_end_angle, vSFOV, vEFOV, source.c_str());
 
         // acceleration scales the model's decay in presence of readings
         node->get_parameter(name_ + "." + source + "." + "decay_acceleration", decay_acceleration);

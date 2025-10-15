@@ -68,7 +68,8 @@ struct MeasurementReading
     /*****************************************************************************/
     MeasurementReading(geometry_msgs::msg::Point& origin, sensor_msgs::msg::PointCloud2 cloud, double obstacle_range,
                        double min_z, double max_z, double vFOV, double vFSOV, double vFEOV, double vFOVPadding,
-                       double hFOV, double decay_acceleration, bool marking, bool clearing, ModelType model_type)
+                       double hFOV, double decay_acceleration, bool marking, bool clearing, ModelType model_type,
+                       bool use_start_end_angle)
         /*****************************************************************************/
         : _origin(origin)
         , _cloud(std::make_shared<sensor_msgs::msg::PointCloud2>(cloud))
@@ -84,6 +85,7 @@ struct MeasurementReading
         , _clearing(clearing)
         , _decay_acceleration(decay_acceleration)
         , _model_type(model_type)
+        , _use_start_end_angle(use_start_end_angle)
     {
     }
 
@@ -112,6 +114,7 @@ struct MeasurementReading
         , _clearing(obs._clearing)
         , _decay_acceleration(obs._decay_acceleration)
         , _model_type(obs._model_type)
+        , _use_start_end_angle(obs._use_start_end_angle)
     {
     }
 
