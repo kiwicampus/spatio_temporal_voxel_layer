@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 project(spatio_temporal_voxel_layer)
 
 if(NOT WIN32)
@@ -22,14 +22,16 @@ find_package(message_filters REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(nav2_ros_common REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(openvdb_vendor REQUIRED)
+find_package(point_cloud_transport REQUIRED)
 
-find_package(OpenVDB REQUIRED)
 remove_definitions(-DDISABLE_LIBUSB-1.0)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system thread)
@@ -67,11 +69,11 @@ set(dependencies
   tf2_sensor_msgs
   visualization_msgs
   builtin_interfaces
+  openvdb_vendor
+  point_cloud_transport
 )
 
 set(library_name spatio_temporal_voxel_layer_core)
-
-add_definitions(${EIGEN3_DEFINITIONS})
 
 set(srv_files "srv/SaveGrid.srv")
 rosidl_generate_interfaces(${PROJECT_NAME}
@@ -86,7 +88,7 @@ include_directories(
     ${EIGEN3_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
-    ${OpenVDB_INCLUDE_DIR}
+    ${pcl_conversions_INCLUDE_DIRS}
 )
 
 add_library(${library_name} SHARED
@@ -105,10 +107,29 @@ target_link_libraries(${library_name}
   ${Boost_LIBRARIES}
   ${EIGEN3_LIBRARIES}
   ${PCL_LIBRARIES}
-  ${OpenVDB_LIBRARIES}
+  OpenVDB::openvdb
+  rclcpp::rclcpp
+  ${geometry_msgs_TARGETS}
+  rclcpp_lifecycle::rclcpp_lifecycle
+  ${sensor_msgs_TARGETS}
+  ${visualization_msgs_TARGETS}
+  tf2_ros::tf2_ros
+  tf2_geometry_msgs::tf2_geometry_msgs
+  tf2_sensor_msgs::tf2_sensor_msgs
+  nav2_costmap_2d::nav2_costmap_2d_core
+  laser_geometry::laser_geometry
+  pcl_conversions::pcl_conversions
+  nav2_ros_common::nav2_ros_common
+  point_cloud_transport::point_cloud_transport
 )
 
-ament_target_dependencies(${library_name} ${dependencies})
+# Get a linker error when there are undefined symbols
+if(APPLE)
+  # macOS linker flag for AppleClang
+  target_link_options(${library_name} PRIVATE -Wl,-undefined,error)
+else()
+  target_link_options(${library_name} PRIVATE -Wl,--no-undefined)
+endif()
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -132,5 +153,5 @@ install(FILES costmap_plugins.xml
 ament_export_dependencies(rosidl_default_runtime)
 pluginlib_export_plugin_description_file(nav2_costmap_2d costmap_plugins.xml)
 ament_export_include_directories(include)
-ament_export_libraries(${PROJECT_NAME})
+ament_export_libraries(${library_name})
 ament_package()

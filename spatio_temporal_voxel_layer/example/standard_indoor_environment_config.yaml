@@ -19,7 +19,8 @@ global_costmap:
         observation_sources:      rgbd1_mark rgbd1_clear
         rgbd1_mark:
           data_type: PointCloud2
-          topic: camera1/depth/points
+          topic: camera/depth/points
+          transport_type: "raw"        # default raw -No compression-, Options: zlib, draco, zstd
           marking: true
           clearing: false
           obstacle_range: 3.0          # meters
@@ -33,12 +34,13 @@ global_costmap:
           clear_after_reading: true    # default false, clear the buffer after the layer gets readings from it
         rgbd1_clear:
           data_type: PointCloud2
-          topic: camera1/depth/points
+          topic: camera/depth/points
+          transport_type: "raw"       # default raw -No compression-, Options: zlib, draco, zstd
           marking: false
           clearing: true
           max_z: 7.0                  # default 0, meters
           min_z: 0.1                  # default 10, meters
           vertical_fov_angle: 0.8745  # default 0.7, radians
           horizontal_fov_angle: 1.048 # default 1.04, radians
-          decay_acceleration: 1.0     # default 0, 1/s^2. If laser scanner MUST be 0
+          decay_acceleration: 5.0     # default 0, 1/s^2. If laser scanner MUST be 0
           model_type: 0                # default 0, model type for frustum. 0=depth camera, 1=3d lidar like VLP16 or similar

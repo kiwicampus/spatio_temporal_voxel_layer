@@ -43,6 +43,7 @@
 #include <vector>
 
 #include "spatio_temporal_voxel_layer/spatio_temporal_voxel_layer.hpp"
+#include "point_cloud_transport/subscriber_filter.hpp"
 
 namespace spatio_temporal_voxel_layer
 {
@@ -119,6 +120,9 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
   // decay param
   declareParameter("voxel_decay", rclcpp::ParameterValue(-1.0));
   node->get_parameter(name_ + ".voxel_decay", _voxel_decay);
+  // distance decay param
+  declareParameter("voxel_distance_decay", rclcpp::ParameterValue(-1.0));
+  node->get_parameter(name_ + ".voxel_distance_decay", _voxel_distance_decay);
   // whether to map or navigate
   declareParameter("mapping_mode", rclcpp::ParameterValue(false));
   node->get_parameter(name_ + ".mapping_mode", _mapping_mode);
@@ -143,20 +147,20 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
   auto sub_opt = rclcpp::SubscriptionOptions();
   sub_opt.callback_group = callback_group_;
 
-  auto pub_opt = rclcpp::PublisherOptions();
-  sub_opt.callback_group = callback_group_;
-
-  _voxel_pub = node->create_publisher<sensor_msgs::msg::PointCloud2>(
-    "voxel_grid", rclcpp::QoS(1), pub_opt);
+  if(_publish_voxels)
+  {
+    _voxel_pub = node->create_publisher<sensor_msgs::msg::PointCloud2>(
+      "voxel_grid", nav2::qos::StandardTopicQoS(1), callback_group_);
+  }
 
   auto save_grid_callback = std::bind(
     &SpatioTemporalVoxelLayer::SaveGridCallback, this, _1, _2, _3);
   _grid_saver = node->create_service<spatio_temporal_voxel_layer::srv::SaveGrid>(
-    "save_grid", save_grid_callback, rmw_qos_profile_services_default, callback_group_);
+    "save_grid", save_grid_callback, callback_group_);
 
   _voxel_grid = std::make_unique<volume_grid::SpatioTemporalVoxelGrid>(
     node->get_clock(), _voxel_size, static_cast<double>(default_value_), _decay_model,
-    _voxel_decay, _publish_voxels);
+    _voxel_decay, _voxel_distance_decay, _publish_voxels);
 
   matchSize();
 
@@ -169,7 +173,7 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
     double observation_keep_time, expected_update_rate, min_obstacle_height, max_obstacle_height;
     double min_z, max_z, vFOV, vFOVPadding;
     double hFOV, decay_acceleration, obstacle_range;
-    std::string topic, sensor_frame, data_type, filter_str;
+    std::string topic, sensor_frame, data_type, filter_str, transport_type;
     bool inf_is_valid = false, clearing, marking;
     bool clear_after_reading, enabled;
     int voxel_min_points;
@@ -182,6 +186,7 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
     declareParameter(
       source + "." + "data_type",
       rclcpp::ParameterValue(std::string("PointCloud2")));
+    declareParameter(source + "." + "transport_type", rclcpp::ParameterValue(std::string("raw")));
     declareParameter(source + "." + "min_obstacle_height", rclcpp::ParameterValue(0.0));
     declareParameter(source + "." + "max_obstacle_height", rclcpp::ParameterValue(3.0));
     declareParameter(source + "." + "inf_is_valid", rclcpp::ParameterValue(false));
@@ -210,6 +215,7 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
       name_ + "." + source + "." + "expected_update_rate",
       expected_update_rate);
     node->get_parameter(name_ + "." + source + "." + "data_type", data_type);
+    node->get_parameter(name_ + "." + source + "." + "transport_type", transport_type);
     node->get_parameter(name_ + "." + source + "." + "min_obstacle_height", min_obstacle_height);
     node->get_parameter(name_ + "." + source + "." + "max_obstacle_height", max_obstacle_height);
     node->get_parameter(name_ + "." + source + "." + "inf_is_valid", inf_is_valid);
@@ -258,6 +264,8 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
               "Only topics that use pointclouds or laser scans are supported.");
     }
 
+    topic = joinWithParentNamespace(topic);
+
     // create an observation buffer
     _observation_buffers.push_back(
       std::shared_ptr<buffer::MeasurementBuffer>(
@@ -280,20 +288,19 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
       _clearing_buffers.push_back(_observation_buffers.back());
     }
 
-    rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
-    custom_qos_profile.depth = 50;
+    const auto custom_qos_profile = nav2::qos::SensorDataQoS(50);
 
     // create a callback for the topic
     if (data_type == "LaserScan") {
-      auto sub = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan,
-          rclcpp_lifecycle::LifecycleNode>>(node, topic, custom_qos_profile, sub_opt);
+      auto sub = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(
+        node, topic, custom_qos_profile, sub_opt);
+      sub->unsubscribe();
 
-      std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::LaserScan>
-      > filter(new tf2_ros::MessageFilter<sensor_msgs::msg::LaserScan>(
+      auto filter = std::make_shared<tf2_ros::MessageFilter<sensor_msgs::msg::LaserScan>>(
           *sub, *tf_, _global_frame, 50,
                  node->get_node_logging_interface(),
                  node->get_node_clock_interface(),
-                 tf2::durationFromSec(transform_tolerance)));
+                 tf2::durationFromSec(transform_tolerance));
 
       if (inf_is_valid) {
         filter->registerCallback(
@@ -312,15 +319,15 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
 
       _observation_notifiers.back()->setTolerance(rclcpp::Duration::from_seconds(0.05));
     } else if (data_type == "PointCloud2") {
-      auto sub = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::PointCloud2,
-          rclcpp_lifecycle::LifecycleNode>>(node, topic, custom_qos_profile, sub_opt);
+      auto sub = std::make_shared<point_cloud_transport::SubscriberFilter>(
+        *node, topic, transport_type, custom_qos_profile, sub_opt);
+      sub->unsubscribe();
 
-      std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>
-      > filter(new tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>(
+      auto filter = std::make_shared<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>>(
           *sub, *tf_, _global_frame, 50,
                  node->get_node_logging_interface(),
                  node->get_node_clock_interface(),
-                 tf2::durationFromSec(transform_tolerance)));
+                 tf2::durationFromSec(transform_tolerance));
       filter->registerCallback(
         std::bind(
           &SpatioTemporalVoxelLayer::PointCloud2Callback, this, _1,
@@ -340,7 +347,7 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
       _observation_subscribers.back());
     std::string toggle_topic = source + "/toggle_enabled";
     auto server = node->create_service<std_srvs::srv::SetBool>(
-      toggle_topic, toggle_srv_callback, rmw_qos_profile_services_default, callback_group_);
+      toggle_topic, toggle_srv_callback, callback_group_);
 
     _buffer_enabler_servers.push_back(server);
 
@@ -444,7 +451,7 @@ void SpatioTemporalVoxelLayer::BufferEnablerCallback(
   const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
   std::shared_ptr<std_srvs::srv::SetBool::Response> response,
   const std::shared_ptr<buffer::MeasurementBuffer> buffer,
-  const std::shared_ptr<message_filters::SubscriberBase<rclcpp_lifecycle::LifecycleNode>> &subcriber
+  const std::shared_ptr<message_filters::SubscriberBase> &subcriber
   )
 /*****************************************************************************/
 {
@@ -457,6 +464,7 @@ void SpatioTemporalVoxelLayer::BufferEnablerCallback(
       response->message = "Enabling sensor";
     } else if (subcriber) {
       subcriber->unsubscribe();
+      ResetGrid();
       response->message = "Disabling sensor";
     }
   } else {
@@ -478,7 +486,7 @@ bool SpatioTemporalVoxelLayer::GetMarkingObservations(
   for (unsigned int i = 0; i != _marking_buffers.size(); ++i) {
     _marking_buffers[i]->Lock();
     _marking_buffers[i]->GetReadings(marking_observations);
-    current = _marking_buffers[i]->UpdatedAtExpectedRate();
+    current = current && _marking_buffers[i]->UpdatedAtExpectedRate();
     _marking_buffers[i]->Unlock();
   }
   marking_observations.insert(
@@ -497,7 +505,7 @@ bool SpatioTemporalVoxelLayer::GetClearingObservations(
   for (unsigned int i = 0; i != _clearing_buffers.size(); ++i) {
     _clearing_buffers[i]->Lock();
     _clearing_buffers[i]->GetReadings(clearing_observations);
-    current = _clearing_buffers[i]->UpdatedAtExpectedRate();
+    current =  current &&_clearing_buffers[i]->UpdatedAtExpectedRate();
     _clearing_buffers[i]->Unlock();
   }
   return current;
@@ -769,7 +777,10 @@ void SpatioTemporalVoxelLayer::updateBounds(
     should_save = node->now() - _last_map_save_time > *_map_save_duration;
   }
   if (!_mapping_mode) {
-    _voxel_grid->ClearFrustums(clearing_observations, cleared_cells);
+    openvdb::Vec3d robot_pose_world;
+    robot_pose_world[0] = robot_x;
+    robot_pose_world[1] = robot_y;
+    _voxel_grid->ClearFrustums(clearing_observations, cleared_cells, robot_pose_world);
   } else if (should_save) {
     _last_map_save_time = node->now();
     time_t rawtime;
@@ -953,8 +964,8 @@ void SpatioTemporalVoxelLayer::clearArea(
   // convert map coords to world coords
   volume_grid::occupany_cell start_world(0, 0);
   volume_grid::occupany_cell end_world(0, 0);
-  mapToWorld(start_x, start_y, start_world.x, start_world.y);
-  mapToWorld(end_x, end_y, end_world.x, end_world.y);
+  mapToWorldNoBounds(start_x, start_y, start_world.x, start_world.y);
+  mapToWorldNoBounds(end_x, end_y, end_world.x, end_world.y);
 
   boost::recursive_mutex::scoped_lock lock(_voxel_grid_lock);
   _voxel_grid->ResetGridArea(start_world, end_world, invert_area);

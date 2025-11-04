@@ -56,8 +56,8 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 // TF
-#include "tf2_ros/buffer.h"
-#include "message_filters/subscriber.h"
+#include "tf2_ros/buffer.hpp"
+#include "message_filters/subscriber.hpp"
 // msgs
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "geometry_msgs/msg/quaternion.hpp"
