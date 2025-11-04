@@ -183,7 +183,7 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
 
         declareParameter(source + "." + "use_start_end_angle", rclcpp::ParameterValue(false));
         declareParameter(source + "." + "vertical_fov_start_angle", rclcpp::ParameterValue(-0.12));
-        declareParameter(source + "." + "vertical_fov_end_angle", rclcpp::ParameterValue(1.0));
+        declareParameter(source + "." + "vertical_fov_end_angle", rclcpp::ParameterValue(0.91));
 
         declareParameter(source + "." + "vertical_fov_padding", rclcpp::ParameterValue(0.0));
         declareParameter(source + "." + "horizontal_fov_angle", rclcpp::ParameterValue(1.04));
