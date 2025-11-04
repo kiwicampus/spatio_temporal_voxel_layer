@@ -59,9 +59,7 @@ ThreeDimensionalLidarFrustum::ThreeDimensionalLidarFrustum(const double& vFOV, c
     _tan_vFOVhalf_squared = _tan_vFOVhalf * _tan_vFOVhalf;
     // Asymmetric FOV
     _tan_vSFOV = tan(_vSFOV);
-    _tan_vSFOV_squared = _tan_vSFOV * _tan_vSFOV;
     _tan_vEFOV = tan(_vEFOV);
-    _tan_vEFOV_squared = _tan_vEFOV * _tan_vEFOV;
     _min_d_squared = _min_d * _min_d;
     _max_d_squared = _max_d * _max_d;
     _full_hFOV = false;
@@ -105,7 +103,6 @@ bool ThreeDimensionalLidarFrustum::IsInside(const openvdb::Vec3d& pt)
         double ratio = transformed_pt[2] /
                        std::sqrt(transformed_pt[0] * transformed_pt[0] + transformed_pt[1] * transformed_pt[1]);
 
-        // Add optional padding for tolerance to vFOV limits
         // Check if inside frustum valid vFOV: tan(vSFOV) < ratio < tan(vEFOV)
         if (ratio < _tan_vSFOV - _vFOVPadding || ratio > _tan_vEFOV + _vFOVPadding)
         {
@@ -114,9 +111,7 @@ bool ThreeDimensionalLidarFrustum::IsInside(const openvdb::Vec3d& pt)
     }
     else
     {
-        // // Check if inside frustum valid vFOV
-        // In this case we use symmetric vFOV, so we check if (z^2) / (x^2 + y^2) < tan(vFOV/2)^2 because the sign of z
-        // does not matter
+        // Symmetric vFOV, (z^2) / (x^2 + y^2) < tan(vFOV/2)^2 because the sign of z does not matter
         const double v_padded = fabs(transformed_pt[2]) + _vFOVPadding;
         if ((v_padded * v_padded / radial_distance_squared) > _tan_vFOVhalf_squared)
         {
