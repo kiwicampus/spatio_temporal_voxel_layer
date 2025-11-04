@@ -45,45 +45,47 @@
 // STVL
 #include "spatio_temporal_voxel_layer/frustum_models/frustum.hpp"
 
-namespace geometry {
+namespace geometry
+{
 
 // A class to model a spinning 3D Lidar frustum in world space
 class ThreeDimensionalLidarFrustum : public Frustum
 {
-   public:
-    ThreeDimensionalLidarFrustum(const double& vFOV, const bool& use_start_end_angle, const double& vEFOV,
-                                 const double& vSFOV, const double& vFOVPadding, const double& hFOV,
-                                 const double& min_dist, const double& max_dist);
-    virtual ~ThreeDimensionalLidarFrustum(void);
+public:
+  ThreeDimensionalLidarFrustum(
+    const double & vFOV, const bool& use_start_end_angle, const double& vEFOV,
+    const double& vSFOV, const double & vFOVPadding,
+    const double & hFOV, const double & min_dist, const double & max_dist);
+  virtual ~ThreeDimensionalLidarFrustum(void);
 
-    // Does nothing in 3D lidar model
-    virtual void TransformModel(void);
+  // Does nothing in 3D lidar model
+  virtual void TransformModel(void);
 
-    // determine if a point is inside of the transformed frustum
-    virtual bool IsInside(const openvdb::Vec3d& pt);
+  // determine if a point is inside of the transformed frustum
+  virtual bool IsInside(const openvdb::Vec3d & pt);
 
-    // set pose of 3d lidar in global space
-    virtual void SetPosition(const geometry_msgs::msg::Point& origin);
-    virtual void SetOrientation(const geometry_msgs::msg::Quaternion& quat);
+  // set pose of 3d lidar in global space
+  virtual void SetPosition(const geometry_msgs::msg::Point & origin);
+  virtual void SetOrientation(const geometry_msgs::msg::Quaternion & quat);
 
-   private:
-    // utils to find useful frustum metadata
-    double Dot(const VectorWithPt3D&, const openvdb::Vec3d&) const;
-    double Dot(const VectorWithPt3D&, const Eigen::Vector3d&) const;
+private:
+  // utils to find useful frustum metadata
+  double Dot(const VectorWithPt3D &, const openvdb::Vec3d &) const;
+  double Dot(const VectorWithPt3D &, const Eigen::Vector3d &) const;
 
-    bool _use_start_end_angle;                                          // New
-    double _vFOV, _vSFOV, _vEFOV, _vFOVPadding, _hFOV, _min_d, _max_d;  // New elements
-    double _hFOVhalf;
-    double _min_d_squared, _max_d_squared;
-    double _tan_vFOVhalf, _tan_vSFOV, _tan_vEFOV;
-    double _tan_vFOVhalf_squared, _tan_vSFOV_squared, _tan_vEFOV_squared;
-    Eigen::Vector3d _position;
-    Eigen::Quaterniond _orientation;
-    Eigen::Quaterniond _orientation_conjugate;
-    bool _valid_frustum;
-    bool _full_hFOV;
+
+  bool _use_start_end_angle;                                          // New
+  double _vFOV, _vSFOV, _vEFOV, _vFOVPadding, _hFOV, _min_d, _max_d;  // New 
+  double _hFOVhalf;
+  double _min_d_squared, _max_d_squared;
+  double _tan_vFOVhalf, _tan_vSFOV, _tan_vEFOV;
+  double _tan_vFOVhalf_squared;
+  Eigen::Vector3d _position;
+  Eigen::Quaterniond _orientation;
+  Eigen::Quaterniond _orientation_conjugate;
+  bool _valid_frustum;
+  bool _full_hFOV;
 };
 
 }  // namespace geometry
-
 #endif  // SPATIO_TEMPORAL_VOXEL_LAYER__FRUSTUM_MODELS__THREE_DIMENSIONAL_LIDAR_FRUSTUM_HPP_
