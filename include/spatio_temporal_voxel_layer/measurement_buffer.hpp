@@ -99,6 +99,9 @@ public:
     const double & min_d,
     const double & max_d,
     const double & vFOV,
+    const bool& use_start_end_angle, 
+    const double& vSFOV,
+    const double& vEFOV,
     const double & vFOVPadding,
     const double & hFOV,
     const double & decay_acceleration,
@@ -158,7 +161,9 @@ private:
   std::string _global_frame, _sensor_frame, _source_name, _topic_name;
   std::list<observation::MeasurementReading> _observation_list;
   double _min_obstacle_height, _max_obstacle_height, _obstacle_range, _tf_tolerance;
-  double _min_z, _max_z, _vertical_fov, _vertical_fov_padding, _horizontal_fov;
+  bool _use_start_end_angle; // New
+  double _min_z, _max_z, _vertical_fov, _vertical_start_fov, _vertical_end_fov; // New
+  double _vertical_fov_padding, _horizontal_fov;
   double _decay_acceleration, _voxel_size;
   bool _marking, _clearing;
   Filters _filter;
@@ -170,5 +175,4 @@ private:
 };
 
 }  // namespace buffer
-
 #endif  // SPATIO_TEMPORAL_VOXEL_LAYER__MEASUREMENT_BUFFER_HPP_

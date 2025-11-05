@@ -168,6 +168,8 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
     // get the parameters for the specific topic
     double observation_keep_time, expected_update_rate, min_obstacle_height, max_obstacle_height;
     double min_z, max_z, vFOV, vFOVPadding;
+    double vSFOV, vEFOV;
+    bool use_start_end_angle;
     double hFOV, decay_acceleration, obstacle_range;
     std::string topic, sensor_frame, data_type, filter_str;
     bool inf_is_valid = false, clearing, marking;
@@ -192,6 +194,11 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
     declareParameter(source + "." + "min_z", rclcpp::ParameterValue(0.0));
     declareParameter(source + "." + "max_z", rclcpp::ParameterValue(10.0));
     declareParameter(source + "." + "vertical_fov_angle", rclcpp::ParameterValue(0.7));
+
+    declareParameter(source + "." + "use_start_end_angle", rclcpp::ParameterValue(false));
+    declareParameter(source + "." + "vertical_fov_start_angle", rclcpp::ParameterValue(-0.12));
+    declareParameter(source + "." + "vertical_fov_end_angle", rclcpp::ParameterValue(0.91));
+
     declareParameter(source + "." + "vertical_fov_padding", rclcpp::ParameterValue(0.0));
     declareParameter(source + "." + "horizontal_fov_angle", rclcpp::ParameterValue(1.04));
     declareParameter(source + "." + "decay_acceleration", rclcpp::ParameterValue(0.0));
@@ -227,6 +234,17 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
     node->get_parameter(name_ + "." + source + "." + "vertical_fov_padding", vFOVPadding);
     // horizontal FOV angle in rad
     node->get_parameter(name_ + "." + source + "." + "horizontal_fov_angle", hFOV);
+
+    // Whether to use start and end angles for vertical FOV (3D lidar frustum only)
+    node->get_parameter(name_ + "." + source + "." + "use_start_end_angle", use_start_end_angle);
+    // vertical FOV start angle in rad (3D lidar frustum only)
+    node->get_parameter(name_ + "." + source + "." + "vertical_fov_start_angle", vSFOV);
+    // vertical FOV end angle in rad (3D lidar frustum only)
+    node->get_parameter(name_ + "." + source + "." + "vertical_fov_end_angle", vEFOV);
+
+    RCLCPP_INFO(logger_, "[%s] use_start_end_angle=%d | vSFOV=%.3f | vEFOV=%.3f (source=%s)", getName().c_str(),
+                use_start_end_angle, vSFOV, vEFOV, source.c_str());
+
     // acceleration scales the model's decay in presence of readings
     node->get_parameter(name_ + "." + source + "." + "decay_acceleration", decay_acceleration);
     // performs an approximate voxel filter over the data to reduce
@@ -265,7 +283,7 @@ void SpatioTemporalVoxelLayer::onInitialize(void)
           source, topic,
           observation_keep_time, expected_update_rate, min_obstacle_height,
           max_obstacle_height, obstacle_range, *tf_, _global_frame, sensor_frame,
-          transform_tolerance, min_z, max_z, vFOV, vFOVPadding, hFOV,
+          transform_tolerance, min_z, max_z, vFOV, use_start_end_angle, vSFOV, vEFOV, vFOVPadding, hFOV,
           decay_acceleration, marking, clearing, _voxel_size,
           filter, voxel_min_points, enabled, clear_after_reading, model_type,
           node->get_clock(), node->get_logger())));

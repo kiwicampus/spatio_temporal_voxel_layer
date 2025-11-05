@@ -42,15 +42,19 @@ namespace geometry
 
 /*****************************************************************************/
 ThreeDimensionalLidarFrustum::ThreeDimensionalLidarFrustum(
-  const double & vFOV, const double & vFOVPadding, const double & hFOV,
+  const double & vFOV, const bool& use_start_end_angle,
+  const double& vSFOV, const double& vEFOV,const double & vFOVPadding, const double & hFOV,
   const double & min_dist, const double & max_dist)
-: _vFOV(vFOV), _vFOVPadding(vFOVPadding), _hFOV(hFOV),
+: _use_start_end_angle(use_start_end_angle), _vFOV(vFOV), _vSFOV(vSFOV), _vEFOV(vEFOV), _vFOVPadding(vFOVPadding), _hFOV(hFOV),
   _min_d(min_dist), _max_d(max_dist)
 /*****************************************************************************/
 {
   _hFOVhalf = _hFOV / 2.0;
   _tan_vFOVhalf = tan(_vFOV / 2.0);
   _tan_vFOVhalf_squared = _tan_vFOVhalf * _tan_vFOVhalf;
+  // Asymmetric 
+  _tan_vSFOV = tan(_vSFOV);
+  _tan_vEFOV = tan(_vEFOV);
   _min_d_squared = _min_d * _min_d;
   _max_d_squared = _max_d * _max_d;
   _full_hFOV = false;
@@ -85,38 +89,52 @@ bool ThreeDimensionalLidarFrustum::IsInside(const openvdb::Vec3d & pt)
     (transformed_pt[0] * transformed_pt[0]) +
     (transformed_pt[1] * transformed_pt[1]);
 
+  bool inside = true;
   // Check if inside frustum valid range
   if (radial_distance_squared > _max_d_squared ||
     radial_distance_squared < _min_d_squared)
   {
-    return false;
+    inside = false;
   }
 
-  // // Check if inside frustum valid vFOV
-  const double v_padded = fabs(transformed_pt[2]) + _vFOVPadding;
-  if (( v_padded * v_padded / radial_distance_squared) >
-    _tan_vFOVhalf_squared)
-  {
-    return false;
-  }
+  if (_use_start_end_angle)
+  {  // Compute ratio = (z) / sqrt(x^2 + y^2)
+        double ratio = transformed_pt[2] /
+                       std::sqrt(transformed_pt[0] * transformed_pt[0] + transformed_pt[1] * transformed_pt[1]);
+
+        // Check if inside frustum valid vFOV: tan(vSFOV) < ratio < tan(vEFOV)
+        if (ratio < _tan_vSFOV - _vFOVPadding || ratio > _tan_vEFOV + _vFOVPadding)
+        {
+            inside = false;
+        }
+    }
+    else
+    {
+        // Symmetric vFOV, (z^2) / (x^2 + y^2) < tan(vFOV/2)^2 because the sign of z does not matter
+        const double v_padded = fabs(transformed_pt[2]) + _vFOVPadding;
+        if ((v_padded * v_padded / radial_distance_squared) > _tan_vFOVhalf_squared)
+        {
+            inside = false;
+        }
+    }
 
   // Check if inside frustum valid hFOV, unless hFOV is full-circle (360 degree)
   if (!_full_hFOV) {
     double half_pi = M_PI / 2;
     if (transformed_pt[0] > 0) {
       if (fabs(atan(transformed_pt[1] / transformed_pt[0])) > _hFOVhalf) {
-        return false;
+        inside = false;
       }
     } else if (fabs(atan(transformed_pt[0] / transformed_pt[1])) + half_pi > _hFOVhalf) {
-      return false;
+      inside = false;
     }
-  }
-
-  return true;
 }
 
-/*****************************************************************************/
-void ThreeDimensionalLidarFrustum::SetPosition(
+      return inside; 
+
+    }
+
+    void ThreeDimensionalLidarFrustum::SetPosition(
   const geometry_msgs::msg::Point & origin)
 /*****************************************************************************/
 {
@@ -151,4 +169,4 @@ double ThreeDimensionalLidarFrustum::Dot(
          plane_pt.z * query_pt[2];
 }
 
-}  // namespace geometry
+} 
