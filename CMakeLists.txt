@@ -9,9 +9,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Get a linker error when there are undefined symbols
-add_link_options(-Wl,--no-undefined)
-
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 find_package(ament_cmake REQUIRED)
@@ -30,6 +27,8 @@ find_package(tf2_sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(python_cmake_module REQUIRED)
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
 find_package(std_srvs REQUIRED)
 find_package(openvdb_vendor REQUIRED)
 
@@ -110,6 +109,9 @@ target_link_libraries(${library_name}
   ${PCL_LIBRARIES}
   OpenVDB::openvdb
 )
+
+# Keep undefined-symbol checking on the C++ plugin library only.
+target_link_options(${library_name} PRIVATE -Wl,--no-undefined)
 
 ament_target_dependencies(${library_name} ${dependencies})
 
